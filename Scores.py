@@ -1,42 +1,45 @@
+from flask import Flask, request, jsonify
 import requests
 from bs4 import BeautifulSoup
-import os
-import csv
+from collections import OrderedDict
 
-directory = 'Documents'
-file_path = os.path.join(directory, 'matches.csv')
+app = Flask(__name__)
+app.config['JSON_SORT_KEYS'] = False
 
-os.makedirs(directory, exist_ok=True)
-
-date = input('Enter date in yyyy-mm-dd format: ')
-page = requests.get(f"https://www.besoccer.com/livescore/{date}")
-
-def main(page):
-    src = page.content
-    soup = BeautifulSoup(src, "lxml")
-    match_details = []
+def get_match_details(date):
+    url = f"https://www.besoccer.com/livescore/{date}"
+    page = requests.get(url)
+    soup = BeautifulSoup(page.content, "lxml")
     
+    match_details = []
     championships = soup.find("div", {'id': 'tableMatches'}).find_all("div", {'id': 'mod_panel'})
     
-    def get_match_info(championships):
-        for i in range(len(championships)):
-            championship_title = championships[i].contents[1].find("span", {'class': 'va-m'}).text.strip()
-            matches = championships[i].contents[1].find_all("a", {'class': 'match-link'})
-            for match in matches:
-                home_team = match.find("div", {'class': 'team_left'}).text.strip()
-                away_team = match.find("div", {'class': 'team_right'}).text.strip()
-                score = match.find("div", {'class': 'marker'}).text.strip()
-                match_details.append({"Championship":championship_title, "Home Team":home_team, "Result/Time":score, "Away Team":away_team})
-            if i == 5:
-                break
-    get_match_info(championships)
-    
-    keys = match_details[0].keys()
-    
-    with open(file_path, 'w', newline='') as output:
-        dict_writer = csv.DictWriter(output, keys)
-        dict_writer.writeheader()
-        dict_writer.writerows(match_details)
-        print("File created")
-    
-main(page)
+    for i in range(len(championships)):
+        championship_title = championships[i].contents[1].find("span", {'class': 'va-m'}).text.strip()
+        matches = championships[i].contents[1].find_all("a", {'class': 'match-link'})
+        
+        for match in matches:
+            home_team = match.find("div", {'class': 'team_left'}).text.strip()
+            away_team = match.find("div", {'class': 'team_right'}).text.strip()
+            score = match.find("div", {'class': 'marker'}).text.strip()
+            match_detail = OrderedDict({
+                "Championship": championship_title,
+                "Match": f"{home_team} {score} {away_team}", 
+            })
+            match_details.append(match_detail)
+        if i == 5:  
+            break
+
+    return match_details
+
+@app.route('/matches', methods=['GET'])
+def matches():
+    date = request.args.get('date')
+    if not date:
+        return jsonify({"error": "Please provide a date in the format yyyy-mm-dd"}), 400
+
+    match_data = get_match_details(date)
+    return jsonify(match_data)
+
+if __name__ == '__main__':
+    app.run(debug=True)
