@@ -1,2 +1,1 @@
-# Web-scraping-for-getting-football-scores
-A web scraping project using BeautifulSoup to get football matches scores using the date of the day and saving them in a csv file 
+This project is a web scraping API that retrieves football match scores and details based on a provided date. The API scrapes match data from a live football score website and returns match information such as the teams playing, the score, and the championship title. It utilizes Python libraries like BeautifulSoup for web scraping and Flask for creating an endpoint that clients can use to get match data in a structured format (JSON).
